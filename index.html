@@ -55,6 +55,14 @@
     </div>
   </main>
 
+  <!-- Modal Pantalla Completa para Fotos -->
+  <div id="modal-imagen" onclick="cerrarImagenFull()" class="fixed inset-0 z-50 bg-black/95 hidden items-center justify-center p-4 cursor-zoom-out">
+    <div class="relative max-w-4xl max-h-full flex items-center justify-center">
+      <img id="img-full-src" src="" class="max-w-full max-h-[90vh] object-contain rounded-xl border border-gray-800">
+      <button class="absolute top-2 right-2 bg-black/70 text-white px-3 py-1.5 rounded-full text-xs font-bold">✕ Cerrar</button>
+    </div>
+  </div>
+
   <script>
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
@@ -84,6 +92,60 @@
       }
     }
 
+    // Función para subir archivos directo desde el navegador y guardarlos en Supabase
+    async function manejarSubidaArchivo(event, rp) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(uploadEvent) {
+        const base64Data = uploadEvent.target.result;
+        const animalActual = animalesVentaMemoria.find(a => String(a.rp) === String(rp));
+        if (!animalActual) return;
+
+        let fotosActuales = animalActual.fotos_urls || [];
+        let videosActuales = animalActual.videos_urls || [];
+
+        if (file.type.includes('video')) {
+          videosActuales.push(base64Data);
+        } else {
+          fotosActuales.push(base64Data);
+        }
+
+        // Actualizar en Supabase
+        const { error } = await supabaseClient
+          .from('ganado')
+          .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
+          .eq('rp', rp);
+
+        if (error) {
+          alert("Hubo un error al guardar en la base de datos.");
+          console.error(error);
+        } else {
+          // Actualizar memoria local y re-renderizar
+          animalActual.fotos_urls = fotosActuales;
+          animalActual.videos_urls = videosActuales;
+          renderizarFichas(animalesVentaMemoria);
+          alert("¡Multimedia cargada con éxito!");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function abrirImagenFull(url) {
+      const modal = document.getElementById('modal-imagen');
+      const img = document.getElementById('img-full-src');
+      img.src = url;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function cerrarImagenFull() {
+      const modal = document.getElementById('modal-imagen');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
     function renderizarFichas(lista) {
       const contenedor = document.getElementById("contenedor-fichas");
       if (!contenedor) return;
@@ -99,25 +161,17 @@
         const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
 
-        // Procesar múltiples videos y fotos (sombra o arreglos)
         let videos = animal.videos_urls || (animal.video_url ? [animal.video_url] : []);
         let fotos = animal.fotos_urls || (animal.foto_url ? [animal.foto_url] : []);
 
         let mediaItems = [];
-        
-        videos.forEach(v => {
-          if (v) mediaItems.push({ type: 'video', url: v });
-        });
-        fotos.forEach(f => {
-          if (f) mediaItems.push({ type: 'image', url: f });
-        });
+        videos.forEach(v => { if (v) mediaItems.push({ type: 'video', url: v }); });
+        fotos.forEach(f => { if (f) mediaItems.push({ type: 'image', url: f }); });
 
-        // Si no tiene nada, poner imagen placeholder
         if (mediaItems.length === 0) {
           mediaItems.push({ type: 'image', url: './logo.png' });
         }
 
-        // Construir Carrusel Multimedios (deslizable horizontalmente)
         const galeriaHTML = `
           <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-64 bg-black">
             ${mediaItems.map(item => {
@@ -130,7 +184,7 @@
                   </div>`;
               } else {
                 return `
-                  <div class="snap-center shrink-0 w-full h-full">
+                  <div class="snap-center shrink-0 w-full h-full cursor-zoom-in" onclick="abrirImagenFull('${item.url}')">
                     <img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/600x340?text=Santa+C%C3%A1ndida'">
                   </div>`;
               }
@@ -140,7 +194,6 @@
 
         return `
           <article class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl transition-all hover:border-green-700/50">
-            <!-- Galería de Fotos y Videos Deslizables -->
             <div class="relative bg-black">
               ${galeriaHTML}
               <span class="absolute top-3 left-3 bg-green-700 text-white font-black text-[10px] px-2.5 py-1 rounded-md shadow uppercase tracking-wider z-10">${categoriaEtiqueta}</span>
@@ -159,6 +212,14 @@
               <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800/60 text-xs space-y-1">
                 <p><span class="text-gray-400 font-bold">Padre:</span> ${animal.padre || 'No informado'}</p>
                 <p><span class="text-gray-400 font-bold">Madre:</span> ${animal.madre || 'No informada'}</p>
+              </div>
+
+              <!-- BOTÓN DE CARGA (Para ocultarlo antes de pasar a la gente, solo poné display:none o borrá este bloque) -->
+              <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
+                <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300">
+                  ➕ Agregar Foto o Video para RP ${rp}
+                  <input type="file" accept="image/*,video/*" onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
+                </label>
               </div>
 
               <a href="https://wa.me/5492262317696?text=Hola,%20me%20interesa%20consultar%20por%20el%20animal%20RP%20${rp}%20(${encodeURIComponent(nombre)})" target="_blank" class="block w-full bg-green-700 hover:bg-green-600 text-white text-center font-bold text-xs py-3 rounded-xl shadow-lg transition-all">
