@@ -117,11 +117,12 @@
 
         if (error) {
           alert("Hubo un error al guardar en la base de datos.");
+          console.error(error);
         } else {
           animalActual.fotos_urls = fotosActuales;
           animalActual.videos_urls = videosActuales;
           renderizarFichas(animalesVentaMemoria);
-          alert("¡Multimedia cargada con éxito!");
+          alert("¡Multimedia guardada correctamente!");
         }
       };
       reader.readAsDataURL(file);
@@ -152,7 +153,7 @@
       contenedor.innerHTML = lista.map(animal => {
         const rp = animal.rp || '-';
         const nombre = animal.nombre || `RP ${rp}`;
-        const esToro = String(animal.tipo || '').toLowerCase().includes('toro' ) || animal.sexo === 'M';
+        const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
 
         let videos = animal.videos_urls || [];
@@ -187,13 +188,12 @@
           </div>
         `;
 
-        // Renderizado de tabla DEP dinámicos
         let depsHTML = '<p class="text-[11px] text-gray-500 italic text-center py-2">Sin DEPs cargados</p>';
         if (animal.deps && typeof animal.deps === 'object') {
           const d = animal.deps;
           depsHTML = `
             <div class="overflow-x-auto">
-              <table class="w-ffull text-center text-[10px] sm:text-xs border-collapse">
+              <table class="w-full text-center text-[10px] sm:text-xs border-collapse">
                 <thead>
                   <tr class="bg-gray-950 text-green-400 border-b border-gray-800">
                     <th class="p-1.5 font-bold">Variable</th>
@@ -239,13 +239,11 @@
                 <p><span class="text-gray-400 font-bold">Madre:</span> ${animal.madre || 'No informada'}</p>
               </div>
 
-              <!-- Tabla de Evaluaciones Genómicas DEP -->
               <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
                 <p class="text-[11px] font-black text-green-400 uppercase tracking-wider">📊 Datos Genómicos ERA (Angus GS)</p>
                 ${depsHTML}
               </div>
 
-              <!-- BOTÓN DE CARGA MANUAL (Temporal) -->
               <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
                 <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300">
                   ➕ Agregar Foto o Video para RP ${rp}
