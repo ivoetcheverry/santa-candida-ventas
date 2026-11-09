@@ -14,7 +14,6 @@
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    .touch-scroll { -webkit-overflow-scrolling: touch; }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen antialiased selection:bg-green-500">
@@ -92,7 +91,6 @@
       }
     }
 
-    // Función para subir archivos directo desde el navegador y guardarlos en Supabase
     async function manejarSubidaArchivo(event, rp) {
       const file = event.target.files[0];
       if (!file) return;
@@ -112,7 +110,6 @@
           fotosActuales.push(base64Data);
         }
 
-        // Actualizar en Supabase
         const { error } = await supabaseClient
           .from('ganado')
           .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
@@ -120,9 +117,7 @@
 
         if (error) {
           alert("Hubo un error al guardar en la base de datos.");
-          console.error(error);
         } else {
-          // Actualizar memoria local y re-renderizar
           animalActual.fotos_urls = fotosActuales;
           animalActual.videos_urls = videosActuales;
           renderizarFichas(animalesVentaMemoria);
@@ -141,9 +136,8 @@
     }
 
     function cerrarImagenFull() {
-      const modal = document.getElementById('modal-imagen');
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
+      document.getElementById('modal-imagen').classList.add('hidden');
+      document.getElementById('modal-imagen').classList.remove('flex');
     }
 
     function renderizarFichas(lista) {
@@ -158,11 +152,12 @@
       contenedor.innerHTML = lista.map(animal => {
         const rp = animal.rp || '-';
         const nombre = animal.nombre || `RP ${rp}`;
-        const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
+        const esToro = String(animal.tipo || '').toLowerCase().includes('toro' ) || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
 
-        let videos = animal.videos_urls || (animal.video_url ? [animal.video_url] : []);
-        let fotos = animal.fotos_urls || (animal.foto_url ? [animal.foto_url] : []);
+        let videos = animal.videos_urls || [];
+        let fotos = animal.fotos_urls || [];
+        if (fotos.length === 0 && animal.foto_url) fotos.push(animal.foto_url);
 
         let mediaItems = [];
         videos.forEach(v => { if (v) mediaItems.push({ type: 'video', url: v }); });
@@ -173,24 +168,54 @@
         }
 
         const galeriaHTML = `
-          <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-64 bg-black">
+          <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-72 bg-black">
             ${mediaItems.map(item => {
               if (item.type === 'video') {
                 return `
                   <div class="snap-center shrink-0 w-full h-full flex items-center justify-center relative">
-                    <video controls class="w-full h-full object-cover">
+                    <video controls class="w-full h-full object-contain">
                       <source src="${item.url}" type="video/mp4">
                     </video>
                   </div>`;
               } else {
                 return `
-                  <div class="snap-center shrink-0 w-full h-full cursor-zoom-in" onclick="abrirImagenFull('${item.url}')">
+                  <div class="snap-center shrink-0 w-full h-full cursor-zoom-in flex items-center justify-center bg-black" onclick="abrirImagenFull('${item.url}')">
                     <img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/600x340?text=Santa+C%C3%A1ndida'">
                   </div>`;
               }
             }).join('')}
           </div>
         `;
+
+        // Renderizado de tabla DEP dinámicos
+        let depsHTML = '<p class="text-[11px] text-gray-500 italic text-center py-2">Sin DEPs cargados</p>';
+        if (animal.deps && typeof animal.deps === 'object') {
+          const d = animal.deps;
+          depsHTML = `
+            <div class="overflow-x-auto">
+              <table class="w-ffull text-center text-[10px] sm:text-xs border-collapse">
+                <thead>
+                  <tr class="bg-gray-950 text-green-400 border-b border-gray-800">
+                    <th class="p-1.5 font-bold">Variable</th>
+                    <th class="p-1.5 font-bold">DEP</th>
+                    <th class="p-1.5 font-bold">Prec %</th>
+                    <th class="p-1.5 font-bold">% DEP</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-800/60 text-gray-300">
+                  ${Object.entries(d).map(([key, val]) => `
+                    <tr>
+                      <td class="p-1.5 font-bold uppercase text-left text-gray-400">${key}</td>
+                      <td class="p-1.5 font-extrabold text-white">${val.dep || '-'}</td>
+                      <td class="p-1.5 text-gray-400">${val.prec || '-'}</td>
+                      <td class="p-1.5 text-green-400 font-semibold">${val.per || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
 
         return `
           <article class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl transition-all hover:border-green-700/50">
@@ -214,7 +239,13 @@
                 <p><span class="text-gray-400 font-bold">Madre:</span> ${animal.madre || 'No informada'}</p>
               </div>
 
-              <!-- BOTÓN DE CARGA (Para ocultarlo antes de pasar a la gente, solo poné display:none o borrá este bloque) -->
+              <!-- Tabla de Evaluaciones Genómicas DEP -->
+              <div class="bg-gray-950 p-3 rounded-xl border border-gray-800 space-y-2">
+                <p class="text-[11px] font-black text-green-400 uppercase tracking-wider">📊 Datos Genómicos ERA (Angus GS)</p>
+                ${depsHTML}
+              </div>
+
+              <!-- BOTÓN DE CARGA MANUAL (Temporal) -->
               <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
                 <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300">
                   ➕ Agregar Foto o Video para RP ${rp}
