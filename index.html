@@ -19,7 +19,6 @@
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen antialiased selection:bg-green-500">
 
-  <!-- Header Público -->
   <header class="bg-gray-900/90 backdrop-blur border-b border-green-800/40 sticky top-0 z-50 px-4 py-3">
     <div class="max-w-4xl mx-auto flex justify-between items-center">
       <div class="flex items-center gap-3">
@@ -35,15 +34,13 @@
     </div>
   </header>
 
-  <!-- Hero y Buscador -->
   <main class="max-w-4xl mx-auto p-4 space-y-6">
     <section class="text-center py-4 space-y-2">
       <span class="bg-green-950 text-green-400 border border-green-800/60 text-[10px] tracking-wider uppercase font-extrabold px-3 py-1 rounded-full">Catálogo Digital</span>
       <h2 class="text-2xl sm:text-3xl font-black text-white">Venta Particular de Hacienda</h2>
-      <p class="text-xs sm:text-sm text-gray-400 max-w-md mx-auto">Selección de toros y vientres PP Aberdeen Angus evaluados con datos genómicos ERA (Angus GS).</p>
+      <p class="text-xs sm:text-sm text-gray-400 max-w-md mx-auto">Selección de toros y vientres PP Aberdeen Angus evaluados con datos genómicos ERA.</p>
     </section>
 
-    <!-- Barra de Filtros y Búsqueda por RP -->
     <div class="space-y-3">
       <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
         <button onclick="filtrarCategoria('todos')" id="btn-cat-todos" class="px-4 py-2 rounded-xl text-xs font-bold bg-green-700 text-white shadow">Todos</button>
@@ -53,209 +50,12 @@
       <input type="text" id="buscar-rp" oninput="filtrarPorRP()" placeholder="🔍 Buscar por RP de animal..." class="w-full p-3 rounded-xl bg-gray-900 border border-gray-800 text-sm text-white placeholder-gray-500 outline-none focus:border-green-600">
     </div>
 
-    <!-- Grilla de Fichas Individuales -->
     <div id="contenedor-fichas" class="grid grid-cols-1 gap-6">
       <p class="text-xs text-gray-500 text-center py-8">Cargando fichas de animales en venta...</p>
     </div>
   </main>
 
   <script>
-    const VIENTRES_OFICIALES = [
-      {
-        rp: "768",
-        nombre: "HERJA PROTOTIPO 86 GENTIL 483",
-        hba: "915107",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Colorado",
-        fecha_nac: "17/04/2025",
-        padre: "HERJA DON EDUDARDO 174 GENTIL (898416)",
-        madre: "HERJA LA FIJA 24 BRILLIANCE PROTO (872412)",
-        abuelo_p: "ESENCIAL GENTIL",
-        abuelo_m: "ESENCIAL 351 ESENCIALITO",
-        deps: {
-          gest: { dep: "+1.0", prec: "0.31", per: "100%" },
-          nacer: { dep: "+0.5", prec: "0.39", per: "80%" },
-          destete: { dep: "+4.7", prec: "0.29", per: "65%" },
-          leche: { dep: "+2.8", prec: "0.20", per: "25%" },
-          final: { dep: "+11.8", prec: "0.20", per: "80%" },
-          ce: { dep: "+0.9", prec: "0.28", per: "24%" },
-          alt: { dep: "+2.4", prec: "0.24", per: "25%" },
-          aob: { dep: "+1.1", prec: "0.16", per: "55%" },
-          gd: { dep: "-0.13", prec: "0.16", per: "95%" },
-          gc: { dep: "-0.06", prec: "0.17", per: "95%" },
-          gi: { dep: "+0.01", prec: "0.16", per: "45%" },
-          cm: { dep: "+0.3", prec: "0.16", per: "20%" }
-        }
-      },
-      {
-        rp: "778",
-        nombre: "HERJA TEQ 188 GENTIL 483",
-        hba: "915109",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Colorado",
-        fecha_nac: "24/05/2025",
-        padre: "HERJA DON EDUDARDO 174 GENTIL (898416)",
-        madre: "HERJA LA FIJA 1689 RETA 253 (872415)",
-        abuelo_p: "ESENCIAL GENTIL",
-        abuelo_m: "HERJA DREF QUILA",
-        deps: {
-          gest: { dep: "+0.5", prec: "0.19", per: "90%" },
-          nacer: { dep: "-0.2", prec: "0.26", per: "45%" },
-          destete: { dep: "+4.4", prec: "0.30", per: "70%" },
-          leche: { dep: "+3.2", prec: "0.25", per: "20%" },
-          final: { dep: "+21.7", prec: "0.21", per: "55%" },
-          ce: { dep: "+0.7", prec: "0.27", per: "60%" },
-          alt: { dep: "+1.7", prec: "0.22", per: "60%" },
-          aob: { dep: "-0.1", prec: "0.15", per: "85%" },
-          gd: { dep: "-0.17", prec: "0.15", per: "95%" },
-          gc: { dep: "+0.06", prec: "0.16", per: "85%" },
-          gi: { dep: "-0.07", prec: "0.15", per: "85%" },
-          cm: { dep: "+0.1", prec: "0.15", per: "30%" }
-        }
-      },
-      {
-        rp: "772",
-        nombre: "HERJA CURU 12 ÑATO 431",
-        hba: "915108",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Negro",
-        fecha_nac: "21/04/2025",
-        padre: "HERJA LA FIJA 56 LIDER NATO (888029)",
-        madre: "HERJA SAUL 12 CURU (888486)",
-        abuelo_p: "EL ABRA JEWLIAN MELGA A893",
-        abuelo_m: "HUACA CURU 7210 ZORZAL 5795-T/E-",
-        deps: {
-          gest: { dep: "+0.3", prec: "0.29", per: "85%" },
-          nacer: { dep: "-0.1", prec: "0.38", per: "50%" },
-          destete: { dep: "-1.5", prec: "0.44", per: "100%" },
-          leche: { dep: "+2.6", prec: "0.40", per: "25%" },
-          final: { dep: "+13.5", prec: "0.28", per: "75%" },
-          ce: { dep: "+0.9", prec: "0.27", per: "25%" },
-          alt: { dep: "+1.3", prec: "0.23", per: "75%" },
-          aob: { dep: "+0.3", prec: "0.15", per: "80%" },
-          gd: { dep: "+0.09", prec: "0.15", per: "70%" },
-          gc: { dep: "+0.27", prec: "0.16", per: "70%" },
-          gi: { dep: "-0.01", prec: "0.15", per: "55%" },
-          cm: { dep: "-0.1", prec: "0.15", per: "45%" }
-        }
-      },
-      {
-        rp: "718",
-        nombre: "HERJA CURU 200 NAPOLITANO",
-        hba: "912082",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Negro",
-        fecha_nac: "23/08/2024",
-        padre: "INDIO NUEVO 449 NAPOLITANO 186 (842678)",
-        madre: "HERJA TEA (846098)",
-        abuelo_p: "DUFF NAPOLEON 232",
-        abuelo_m: "HERJA SAUL",
-        peso_nacer: "33 kg",
-        peso_destete: "240 kg",
-        deps: {
-          gest: { dep: "-0.7", prec: "0.41", per: "35%" },
-          nacer: { dep: "-0.4", prec: "0.48", per: "35%" },
-          destete: { dep: "+0.3", prec: "0.31", per: "95%" },
-          leche: { dep: "+0.6", prec: "0.24", per: "55%" },
-          final: { dep: "+16.9", prec: "0.23", per: "65%" },
-          ce: { dep: "+1.0", prec: "0.41", per: "20%" },
-          alt: { dep: "+1.4", prec: "0.31", per: "70%" },
-          aob: { dep: "+1.3", prec: "0.21", per: "50%" },
-          gd: { dep: "+0.33", prec: "0.22", per: "35%" },
-          gc: { dep: "+0.70", prec: "0.23", per: "25%" },
-          gi: { dep: "+0.02", prec: "0.21", per: "40%" },
-          cm: { dep: "-0.4", prec: "0.21", per: "65%" }
-        }
-      },
-      {
-        rp: "784",
-        nombre: "HERJA DENSITY 34 NAPOLITANO",
-        hba: "En trámite",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Negro",
-        fecha_nac: "09/07/2025",
-        padre: "INDIO NUEVO 449 NAPOLITANO 186 (842678)",
-        madre: "HERJA KIMUKI-T/E- (802542)",
-        abuelo_p: "DUFF NAPOLEON 232",
-        abuelo_m: "SAV 004 DENSITY 4336",
-        deps: {
-          gest: { dep: "-0.7", prec: "0.36", per: "35%" },
-          nacer: { dep: "+0.8", prec: "0.38", per: "90%" },
-          destete: { dep: "+7.4", prec: "0.41", per: "40%" },
-          leche: { dep: "0.0", prec: "0.35", per: "70%" },
-          final: { dep: "+32.9", prec: "0.28", per: "25%" },
-          ce: { dep: "+1.1", prec: "0.31", per: "15%" },
-          alt: { dep: "+1.9", prec: "0.26", per: "50%" },
-          aob: { dep: "+1.0", prec: "0.17", per: "60%" },
-          gd: { dep: "+0.37", prec: "0.18", per: "30%" },
-          gc: { dep: "+0.70", prec: "0.19", per: "25%" },
-          gi: { dep: "+0.05", prec: "0.18", per: "25%" },
-          cm: { dep: "-0.8", prec: "0.17", per: "90%" }
-        }
-      },
-      {
-        rp: "684",
-        nombre: "HERJA TEQ 188 RUMI",
-        hba: "912076",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Colorado",
-        fecha_nac: "18/03/2024",
-        padre: "CASAMU B326 RUMI (867566)",
-        madre: "HERJA LA FIJA 1689 RETA 253 (872415)",
-        abuelo_p: "ESENCIAL 37 ARQUIMEDES-T/E-",
-        abuelo_m: "HERJA DREF QUILA",
-        peso_nacer: "29 kg",
-        peso_destete: "267 kg",
-        deps: {
-          gest: { dep: "-0.9", prec: "0.39", per: "25%" },
-          nacer: { dep: "-0.9", prec: "0.43", per: "15%" },
-          destete: { dep: "+1.5", prec: "0.48", per: "90%" },
-          leche: { dep: "-2.6", prec: "0.34", per: "95%" },
-          final: { dep: "+13.1", prec: "0.25", per: "75%" },
-          ce: { dep: "+0.5", prec: "0.43", per: "75%" },
-          alt: { dep: "+1.5", prec: "0.32", per: "65%" },
-          aob: { dep: "+0.2", prec: "0.23", per: "80%" },
-          gd: { dep: "+0.30", prec: "0.24", per: "40%" },
-          gc: { dep: "+0.59", prec: "0.25", per: "35%" },
-          gi: { dep: "-0.07", prec: "0.23", per: "85%" },
-          cm: { dep: "-0.8", prec: "0.23", per: "90%" }
-        }
-      },
-      {
-        rp: "792",
-        nombre: "HERJA TOLUCA 208 RUMI",
-        hba: "915111",
-        tipo: "Vientre PP",
-        sexo: "F",
-        pelaje: "Colorado",
-        fecha_nac: "01/09/2025",
-        padre: "CASAMU B326 RUMI (867566)",
-        madre: "HERJA ROSE 106 VALENTIN TOLUCA (882381)",
-        abuelo_p: "ESENCIAL 37 ARQUIMEDES-T/E-",
-        abuelo_m: "BENJAMIN 5613 TEHUELCHE ORIENTAL",
-        deps: {
-          gest: { dep: "-0.1", prec: "0.37", per: "65%" },
-          nacer: { dep: "-0.8", prec: "0.43", per: "20%" },
-          destete: { dep: "+5.9", prec: "0.35", per: "55%" },
-          leche: { dep: "-3.9", prec: "0.26", per: "100%" },
-          final: { dep: "+37.9", prec: "0.25", per: "15%" },
-          ce: { dep: "+0.9", prec: "0.34", per: "25%" },
-          alt: { dep: "+1.5", prec: "0.29", per: "65%" },
-          aob: { dep: "+0.1", prec: "0.21", per: "85%" },
-          gd: { dep: "+0.08", prec: "0.21", per: "75%" },
-          gc: { dep: "+0.30", prec: "0.22", per: "65%" },
-          gi: { dep: "-0.10", prec: "0.21", per: "95%" },
-          cm: { dep: "-0.4", prec: "0.21", per: "65%" }
-        }
-      }
-    ];
-
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
 
@@ -272,31 +72,15 @@
           .select('*')
           .eq('en_venta', true);
 
-        if (!error && data && data.length > 0) {
-          animalesVentaMemoria = data;
-        } else {
-          animalesVentaMemoria = VIENTRES_OFICIALES;
+        if (error || !data || data.length === 0) {
+          contenedor.innerHTML = `<p class="text-xs text-gray-400 text-center py-10">No hay animales disponibles cargados en Supabase.</p>`;
+          return;
         }
 
+        animalesVentaMemoria = data;
         renderizarFichas(animalesVentaMemoria);
       } catch (err) {
-        console.warn("Usando base precargada oficial:", err);
-        animalesVentaMemoria = VIENTRES_OFICIALES;
-        renderizarFichas(animalesVentaMemoria);
-      }
-    }
-
-    function toggleTablaDeps(rp) {
-      const tabla = document.getElementById(`tabla-deps-${rp}`);
-      const btn = document.getElementById(`btn-deps-${rp}`);
-      if (tabla) {
-        if (tabla.classList.contains("hidden")) {
-          tabla.classList.remove("hidden");
-          if (btn) btn.innerText = "📊 Ocultar DEPs ERA";
-        } else {
-          tabla.classList.add("hidden");
-          if (btn) btn.innerText = "📊 Ver DEPs Genómicos ERA";
-        }
+        console.error("Error cargando desde Supabase:", err);
       }
     }
 
@@ -314,66 +98,53 @@
         const nombre = animal.nombre || `RP ${rp}`;
         const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
-        const videoUrl = animal.video_url || null;
-        const fotoUrl = animal.foto_url || `./logo.png`;
-        const pelaje = animal.pelaje || 'Negro';
 
-        let mediaHTML = '';
-        if (videoUrl) {
-          mediaHTML = `
-            <video controls poster="${fotoUrl}" class="w-full h-full object-cover">
-              <source src="${videoUrl}" type="video/mp4">
-            </video>`;
-        } else {
-          mediaHTML = `<img src="${fotoUrl}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/600x340?text=Santa+C%C3%A1ndida'">`;
+        // Procesar múltiples videos y fotos (sombra o arreglos)
+        let videos = animal.videos_urls || (animal.video_url ? [animal.video_url] : []);
+        let fotos = animal.fotos_urls || (animal.foto_url ? [animal.foto_url] : []);
+
+        let mediaItems = [];
+        
+        videos.forEach(v => {
+          if (v) mediaItems.push({ type: 'video', url: v });
+        });
+        fotos.forEach(f => {
+          if (f) mediaItems.push({ type: 'image', url: f });
+        });
+
+        // Si no tiene nada, poner imagen placeholder
+        if (mediaItems.length === 0) {
+          mediaItems.push({ type: 'image', url: './logo.png' });
         }
 
-        let tablaDepsHTML = '';
-        if (animal.deps) {
-          const d = animal.deps;
-          tablaDepsHTML = `
-            <button onclick="toggleTablaDeps('${rp}')" id="btn-deps-${rp}" class="w-full py-2 px-3 bg-gray-950 border border-green-900/60 text-green-400 font-bold text-xs rounded-xl hover:bg-green-950/80 transition-all">
-              📊 Ver DEPs Genómicos ERA
-            </button>
-            <div id="tabla-deps-${rp}" class="hidden bg-gray-950 p-3 rounded-xl border border-gray-800 text-[11px] overflow-x-auto touch-scroll space-y-2">
-              <div class="flex justify-between items-center text-[10px] text-gray-400 border-b border-gray-800 pb-1">
-                <span>Evaluación Genómica Angus GS</span>
-                <span class="font-bold text-green-400">E.R.A.</span>
-              </div>
-              <table class="w-full text-left border-collapse">
-                <thead>
-                  <tr class="text-[9px] text-gray-500 uppercase border-b border-gray-800">
-                    <th class="py-1">Rasgo</th>
-                    <th class="text-center py-1">DEP</th>
-                    <th class="text-center py-1">Prec</th>
-                    <th class="text-center py-1"> % </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-900 text-gray-300">
-                  <tr><td class="py-1">Largo Gestación</td><td class="text-center font-bold text-white">${d.gest.dep}</td><td class="text-center text-gray-400">${d.gest.prec}</td><td class="text-center text-green-400">${d.gest.per}</td></tr>
-                  <tr><td class="py-1">Peso al Nacer</td><td class="text-center font-bold text-white">${d.nacer.dep}</td><td class="text-center text-gray-400">${d.nacer.prec}</td><td class="text-center text-green-400">${d.nacer.per}</td></tr>
-                  <tr><td class="py-1">Peso Destete Dir.</td><td class="text-center font-bold text-white">${d.destete.dep}</td><td class="text-center text-gray-400">${d.destete.prec}</td><td class="text-center text-green-400">${d.destete.per}</td></tr>
-                  <tr><td class="py-1">Leche</td><td class="text-center font-bold text-white">${d.leche.dep}</td><td class="text-center text-gray-400">${d.leche.prec}</td><td class="text-center text-green-400">${d.leche.per}</td></tr>
-                  <tr><td class="py-1">Peso Final</td><td class="text-center font-bold text-white">${d.final.dep}</td><td class="text-center text-gray-400">${d.final.prec}</td><td class="text-center text-green-400">${d.final.per}</td></tr>
-                  <tr><td class="py-1">Circ. Escrotal</td><td class="text-center font-bold text-white">${d.ce.dep}</td><td class="text-center text-gray-400">${d.ce.prec}</td><td class="text-center text-green-400">${d.ce.per}</td></tr>
-                  <tr><td class="py-1">Altura</td><td class="text-center font-bold text-white">${d.alt.dep}</td><td class="text-center text-gray-400">${d.alt.prec}</td><td class="text-center text-green-400">${d.alt.per}</td></tr>
-                  <tr><td class="py-1">Área Ojo Bife</td><td class="text-center font-bold text-white">${d.aob.dep}</td><td class="text-center text-gray-400">${d.aob.prec}</td><td class="text-center text-green-400">${d.aob.per}</td></tr>
-                  <tr><td class="py-1">Grasa Dorsal</td><td class="text-center font-bold text-white">${d.gd.dep}</td><td class="text-center text-gray-400">${d.gd.prec}</td><td class="text-center text-green-400">${d.gd.per}</td></tr>
-                  <tr><td class="py-1">Grasa Cadera</td><td class="text-center font-bold text-white">${d.gc.dep}</td><td class="text-center text-gray-400">${d.gc.prec}</td><td class="text-center text-green-400">${d.gc.per}</td></tr>
-                  <tr><td class="py-1">Grasa Intramusc.</td><td class="text-center font-bold text-white">${d.gi.dep}</td><td class="text-center text-gray-400">${d.gi.prec}</td><td class="text-center text-green-400">${d.gi.per}</td></tr>
-                  <tr><td class="py-1">% Cortes Minor.</td><td class="text-center font-bold text-white">${d.cm.dep}</td><td class="text-center text-gray-400">${d.cm.prec}</td><td class="text-center text-green-400">${d.cm.per}</td></tr>
-                </tbody>
-              </table>
-            </div>
-          `;
-        }
+        // Construir Carrusel Multimedios (deslizable horizontalmente)
+        const galeriaHTML = `
+          <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-64 bg-black">
+            ${mediaItems.map(item => {
+              if (item.type === 'video') {
+                return `
+                  <div class="snap-center shrink-0 w-full h-full flex items-center justify-center relative">
+                    <video controls class="w-full h-full object-cover">
+                      <source src="${item.url}" type="video/mp4">
+                    </video>
+                  </div>`;
+              } else {
+                return `
+                  <div class="snap-center shrink-0 w-full h-full">
+                    <img src="${item.url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/600x340?text=Santa+C%C3%A1ndida'">
+                  </div>`;
+              }
+            }).join('')}
+          </div>
+        `;
 
         return `
           <article class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl transition-all hover:border-green-700/50">
-            <div class="relative bg-black aspect-video flex items-center justify-center">
-              ${mediaHTML}
-              <span class="absolute top-3 left-3 bg-green-700 text-white font-black text-[10px] px-2.5 py-1 rounded-md shadow uppercase tracking-wider">${categoriaEtiqueta}</span>
-              <span class="absolute top-3 right-3 bg-black/70 text-gray-300 font-bold text-[10px] px-2 py-1 rounded-md border border-gray-700">${pelaje}</span>
+            <!-- Galería de Fotos y Videos Deslizables -->
+            <div class="relative bg-black">
+              ${galeriaHTML}
+              <span class="absolute top-3 left-3 bg-green-700 text-white font-black text-[10px] px-2.5 py-1 rounded-md shadow uppercase tracking-wider z-10">${categoriaEtiqueta}</span>
+              ${mediaItems.length > 1 ? `<span class="absolute bottom-3 right-3 bg-black/80 text-white font-bold text-[10px] px-2 py-0.5 rounded-full z-10">Deslizar (${mediaItems.length}) 👉</span>` : ''}
             </div>
 
             <div class="p-5 space-y-4">
@@ -385,30 +156,12 @@
                 <span class="bg-green-950 text-green-400 border border-green-800/50 text-xs px-2.5 py-1 rounded-lg font-bold">Disponible</span>
               </div>
 
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center text-xs">
-                <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
-                  <span class="text-[9px] text-gray-500 font-bold block uppercase">F. Nacimiento</span>
-                  <span class="font-extrabold text-white text-xs">${animal.fecha_nac || '-'}</span>
-                </div>
-                <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80">
-                  <span class="text-[9px] text-gray-500 font-bold block uppercase">Pn / Pd</span>
-                  <span class="font-extrabold text-white text-xs">${animal.peso_nacer ? animal.peso_nacer + ' / ' + animal.peso_destete : '-'}</span>
-                </div>
-                <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800/80 col-span-2 sm:col-span-1">
-                  <span class="text-[9px] text-gray-500 font-bold block uppercase">Categoría</span>
-                  <span class="font-extrabold text-green-400 text-xs">Puro de Pedigree</span>
-                </div>
-              </div>
-
               <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800/60 text-xs space-y-1">
                 <p><span class="text-gray-400 font-bold">Padre:</span> ${animal.padre || 'No informado'}</p>
                 <p><span class="text-gray-400 font-bold">Madre:</span> ${animal.madre || 'No informada'}</p>
-                <p><span class="text-gray-500 text-[10px]">A. Paterno: ${animal.abuelo_p || '-'} | A. Materno: ${animal.abuelo_m || '-'}</span></p>
               </div>
 
-              ${tablaDepsHTML}
-
-              <a href="https://wa.me/5492262317696?text=Hola,%20me%20interesa%20consultar%20por%20la%20hembra%20RP%20${rp}%20(${encodeURIComponent(nombre)})" target="_blank" class="block w-full bg-green-700 hover:bg-green-600 text-white text-center font-bold text-xs py-3 rounded-xl shadow-lg transition-all">
+              <a href="https://wa.me/5492262317696?text=Hola,%20me%20interesa%20consultar%20por%20el%20animal%20RP%20${rp}%20(${encodeURIComponent(nombre)})" target="_blank" class="block w-full bg-green-700 hover:bg-green-600 text-white text-center font-bold text-xs py-3 rounded-xl shadow-lg transition-all">
                 📲 Consultar por RP ${rp} vía WhatsApp
               </a>
             </div>
