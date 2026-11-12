@@ -101,7 +101,6 @@
       }
     }
 
-    // Comprime imágenes pesadas antes de subirlas para que nunca fallen por tamaño
     function comprimirImagen(file) {
       return new Promise((resolve) => {
         if (!file.type.startsWith('image/')) {
@@ -148,7 +147,7 @@
 
       const rp = animalActual.rp || 'sin_rp';
       const labelEstado = document.getElementById(`estado-subida-${idAnimal}`);
-      if (labelEstado) labelEstado.innerText = "⏳ Subiendo archivo, esperá un segundo...";
+      if (labelEstado) labelEstado.innerText = "⏳ Subiendo al bucket 'Videos'...";
 
       let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
       let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
@@ -168,8 +167,9 @@
           const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
           const filePath = `venta_${rp}_${timestamp}_${safeName}`;
 
+          // Apuntando al bucket correcto "Videos"
           const { error: uploadError } = await supabaseClient.storage
-            .from('fotos-ganado')
+            .from('Videos')
             .upload(filePath, fileToUpload, { upsert: true });
 
           if (uploadError) {
@@ -178,7 +178,7 @@
           }
 
           const { data: publicUrlData } = supabaseClient.storage
-            .from('fotos-ganado')
+            .from('Videos')
             .getPublicUrl(filePath);
 
           if (publicUrlData && publicUrlData.publicUrl) {
