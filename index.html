@@ -66,7 +66,6 @@
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
 
-    // Mapeo manual de pedigríes por RP según lo solicitado
     const PEDIGREES_VENTA = {
       "778": "Gentil x Don Antonio x Trueno x Payador",
       "684": "Rumi x Trueno x Payador",
@@ -103,40 +102,62 @@
     }
 
     async function manejarSubidaArchivo(event, rp) {
-      const file = event.target.files[0];
-      if (!file) return;
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
 
-      const reader = new FileReader();
-      reader.onload = async function(uploadEvent) {
-        const base64Data = uploadEvent.target.result;
-        const animalActual = animalesVentaMemoria.find(a => String(a.rp) === String(rp));
-        if (!animalActual) return;
+      const animalActual = animalesVentaMemoria.find(a => String(a.rp) === String(rp));
+      if (!animalActual) return;
 
-        let fotosActuales = animalActual.fotos_urls || [];
-        let videosActuales = animalActual.videos_urls || [];
+      let fotosActuales = animalActual.fotos_urls || [];
+      let videosActuales = animalActual.videos_urls || [];
 
-        if (file.type.includes('video')) {
-          videosActuales.push(base64Data);
-        } else {
-          fotosActuales.push(base64Data);
+      // Mostrar alerta o indicador visual rápido si se desea
+      alert("⬆️ Subiendo archivo a Supabase Storage...");
+
+      for (let file of files) {
+        const timestamp = Date.now();
+        const fileName = `venta_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+
+        try {
+          const { error: uploadError } = await supabaseClient.storage
+            .from('fotos-ganado')
+            .upload(fileName, file);
+
+          if (uploadError) {
+            console.error("Error subiendo archivo:", uploadError);
+            continue;
+          }
+
+          const { data: publicUrlData } = supabaseClient.storage
+            .from('fotos-ganado')
+            .getPublicUrl(fileName);
+
+          if (publicUrlData && publicUrlData.publicUrl) {
+            if (file.type.includes('video') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+              videosActuales.push(publicUrlData.publicUrl);
+            } else {
+              fotosActuales.push(publicUrlData.publicUrl);
+            }
+          }
+        } catch (err) {
+          console.error("Excepción en subida:", err);
         }
+      }
 
-        const { error } = await supabaseClient
-          .from('ganado')
-          .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
-          .eq('rp', rp);
+      const { error: updateError } = await supabaseClient
+        .from('ganado')
+        .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
+        .eq('rp', rp);
 
-        if (error) {
-          alert("Hubo un error al guardar en la base de datos.");
-          console.error(error);
-        } else {
-          animalActual.fotos_urls = fotosActuales;
-          animalActual.videos_urls = videosActuales;
-          renderizarFichas(animalesVentaMemoria);
-          alert("¡Multimedia guardada correctamente!");
-        }
-      };
-      reader.readAsDataURL(file);
+      if (updateError) {
+        alert("Hubo un error al actualizar la base de datos.");
+        console.error(updateError);
+      } else {
+        animalActual.fotos_urls = fotosActuales;
+        animalActual.videos_urls = videosActuales;
+        renderizarFichas(animalesVentaMemoria);
+        alert("¡Multimedia guardada y sincronizada correctamente!");
+      }
     }
 
     function abrirImagenFull(url) {
@@ -167,7 +188,6 @@
         const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
 
-        // Buscar si hay pedigrí asignado para este RP
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
         let videos = animal.videos_urls || [];
@@ -262,7 +282,7 @@
               <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
                 <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300">
                   ➕ Agregar Foto o Video para RP ${rp}
-                  <input type="file" accept="image/*,video/*" onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
+                  <input type="file" accept="image/*,video/*" multiple onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
                 </label>
               </div>
 
