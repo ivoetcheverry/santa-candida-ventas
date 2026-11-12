@@ -101,6 +101,10 @@
       }
     }
 
+    function dispararSelector(rp) {
+      document.getElementById(`input-file-${rp}`).click();
+    }
+
     async function manejarSubidaArchivo(event, rp) {
       const files = event.target.files;
       if (!files || files.length === 0) return;
@@ -121,11 +125,9 @@
         });
       }
 
-      // Guardar en localStorage para este RP específico
       localStorage.setItem(`galeria_rp_${rp}`, JSON.stringify(extraidasLocal));
-
       filtrarPorRP();
-      alert("¡Foto/Video cargado y agregado al carrusel correctamente!");
+      alert("¡Foto o video agregado correctamente al carrusel!");
     }
 
     function abrirImagenFull(url) {
@@ -158,7 +160,6 @@
 
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        // Obtener fotos locales guardadas para este RP o usar la de la base de datos
         let mediaItems = [];
         let guardadasLocal = JSON.parse(localStorage.getItem(`galeria_rp_${rp}`)) || [];
 
@@ -256,10 +257,10 @@
               </div>
 
               <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
-                <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300">
+                <div onclick="dispararSelector('${rp}')" class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300 py-1">
                   ➕ Agregar Foto o Video para RP ${rp}
-                  <input type="file" accept="image/*,video/*" multiple onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
-                </label>
+                </div>
+                <input type="file" id="input-file-${rp}" accept="image/*,video/*" multiple onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
               </div>
 
               <a href="https://wa.me/5492262317696?text=Hola,%20me%20interesa%20consultar%20por%20el%20animal%20RP%20${rp}%20(${encodeURIComponent(nombre)})" target="_blank" class="block w-full bg-green-700 hover:bg-green-600 text-white text-center font-bold text-xs py-3 rounded-xl shadow-lg transition-all">
