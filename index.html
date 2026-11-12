@@ -101,33 +101,124 @@
       }
     }
 
-    function dispararSelector(rp) {
-      document.getElementById(`input-file-${rp}`).click();
+    // Comprime imágenes pesadas antes de subirlas para que nunca fallen por tamaño
+    function comprimirImagen(file) {
+      return new Promise((resolve) => {
+        if (!file.type.startsWith('image/')) {
+          return resolve(file);
+        }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1280;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
+            }, 'image/jpeg', 0.82);
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
     }
 
-    async function manejarSubidaArchivo(event, rp) {
+    async function manejarSubidaArchivo(event, idAnimal) {
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      let extraidasLocal = JSON.parse(localStorage.getItem(`galeria_rp_${rp}`)) || [];
-
-      for (let file of files) {
-        const reader = new FileReader();
-        await new Promise((resolve) => {
-          reader.onload = function(e) {
-            extraidasLocal.push({
-              url: e.target.result,
-              tipo: file.type.includes('video') ? 'video' : 'image'
-            });
-            resolve();
-          };
-          reader.readAsDataURL(file);
-        });
+      const animalActual = animalesVentaMemoria.find(a => String(a.id) === String(idAnimal));
+      if (!animalActual) {
+        alert("Error: No se encontró el registro del animal.");
+        return;
       }
 
-      localStorage.setItem(`galeria_rp_${rp}`, JSON.stringify(extraidasLocal));
-      filtrarPorRP();
-      alert("¡Foto o video agregado correctamente al carrusel!");
+      const rp = animalActual.rp || 'sin_rp';
+      const labelEstado = document.getElementById(`estado-subida-${idAnimal}`);
+      if (labelEstado) labelEstado.innerText = "⏳ Subiendo archivo, esperá un segundo...";
+
+      let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
+      let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
+
+      if (animalActual.foto_url && !fotosActuales.includes(animalActual.foto_url)) {
+        fotosActuales.push(animalActual.foto_url);
+      }
+
+      let subidosOk = 0;
+
+      for (let rawFile of files) {
+        try {
+          const esVideo = rawFile.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(rawFile.name);
+          const fileToUpload = esVideo ? rawFile : await comprimirImagen(rawFile);
+          
+          const timestamp = Date.now();
+          const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+          const filePath = `venta_${rp}_${timestamp}_${safeName}`;
+
+          const { error: uploadError } = await supabaseClient.storage
+            .from('fotos-ganado')
+            .upload(filePath, fileToUpload, { upsert: true });
+
+          if (uploadError) {
+            alert("Error de Supabase Storage: " + uploadError.message);
+            continue;
+          }
+
+          const { data: publicUrlData } = supabaseClient.storage
+            .from('fotos-ganado')
+            .getPublicUrl(filePath);
+
+          if (publicUrlData && publicUrlData.publicUrl) {
+            const urlFinal = publicUrlData.publicUrl;
+            if (esVideo) {
+              videosActuales.push(urlFinal);
+            } else {
+              fotosActuales.push(urlFinal);
+            }
+            subidosOk++;
+          }
+        } catch (err) {
+          alert("Error procesando el archivo: " + err.message);
+        }
+      }
+
+      if (subidosOk > 0) {
+        const { error: dbError } = await supabaseClient
+          .from('ganado')
+          .update({
+            fotos_urls: fotosActuales,
+            videos_urls: videosActuales,
+            foto_url: fotosActuales[0] || animalActual.foto_url
+          })
+          .eq('id', animalActual.id);
+
+        if (dbError) {
+          alert("Subió al Storage, pero falló al guardar en la tabla: " + dbError.message);
+        } else {
+          animalActual.fotos_urls = fotosActuales;
+          animalActual.videos_urls = videosActuales;
+          if (fotosActuales[0]) animalActual.foto_url = fotosActuales[0];
+          
+          filtrarPorRP();
+          alert(`✅ ¡Se agregaron ${subidosOk} archivo(s) al carrusel del RP ${rp}!`);
+        }
+      }
+
+      if (labelEstado) labelEstado.innerText = `➕ Agregar Foto o Video para RP ${rp}`;
+      event.target.value = "";
     }
 
     function abrirImagenFull(url) {
@@ -157,26 +248,21 @@
         const nombre = animal.nombre || `RP ${rp}`;
         const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
-
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        let mediaItems = [];
-        let guardadasLocal = JSON.parse(localStorage.getItem(`galeria_rp_${rp}`)) || [];
-
-        if (guardadasLocal.length > 0) {
-          mediaItems = guardadasLocal;
-        } else {
-          if (animal.foto_url) mediaItems.push({ type: 'image', url: animal.foto_url });
-          if (animal.fotos_urls) {
-            animal.fotos_urls.forEach(f => mediaItems.push({ type: 'image', url: f }));
-          }
-          if (animal.videos_urls) {
-            animal.videos_urls.forEach(v => mediaItems.push({ type: 'video', url: v }));
-          }
+        let videos = Array.isArray(animal.videos_urls) ? animal.videos_urls : [];
+        let fotos = Array.isArray(animal.fotos_urls) ? animal.fotos_urls : [];
+        
+        if (animal.foto_url && !fotos.includes(animal.foto_url)) {
+          fotos = [animal.foto_url, ...fotos];
         }
 
+        let mediaItems = [];
+        videos.forEach(v => { if (v) mediaItems.push({ tipo: 'video', url: v }); });
+        fotos.forEach(f => { if (f) mediaItems.push({ tipo: 'image', url: f }); });
+
         if (mediaItems.length === 0) {
-          mediaItems.push({ type: 'image', url: './logo.png' });
+          mediaItems.push({ tipo: 'image', url: './logo.png' });
         }
 
         const galeriaHTML = `
@@ -185,8 +271,8 @@
               if (item.tipo === 'video') {
                 return `
                   <div class="snap-center shrink-0 w-full h-full flex items-center justify-center relative">
-                    <video controls class="w-full h-full object-contain">
-                      <source src="${item.url}" type="video/mp4">
+                    <video controls playsinline class="w-full h-full object-contain">
+                      <source src="${item.url}">
                     </video>
                   </div>`;
               } else {
@@ -256,11 +342,11 @@
                 ${depsHTML}
               </div>
 
-              <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center space-y-2">
-                <div onclick="dispararSelector('${rp}')" class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300 py-1">
-                  ➕ Agregar Foto o Video para RP ${rp}
-                </div>
-                <input type="file" id="input-file-${rp}" accept="image/*,video/*" multiple onchange="manejarSubidaArchivo(event, '${rp}')" class="hidden">
+              <div class="bg-gray-950 p-3 rounded-xl border border-dashed border-green-800/60 text-center">
+                <label class="block text-[11px] text-green-400 font-bold uppercase tracking-wider cursor-pointer hover:text-green-300 py-1">
+                  <span id="estado-subida-${animal.id}">➕ Agregar Foto o Video para RP ${rp}</span>
+                  <input type="file" accept="image/*,video/*" multiple onchange="manejarSubidaArchivo(event, '${animal.id}')" class="sr-only">
+                </label>
               </div>
 
               <a href="https://wa.me/5492262317696?text=Hola,%20me%20interesa%20consultar%20por%20el%20animal%20RP%20${rp}%20(${encodeURIComponent(nombre)})" target="_blank" class="block w-full bg-green-700 hover:bg-green-600 text-white text-center font-bold text-xs py-3 rounded-xl shadow-lg transition-all">
