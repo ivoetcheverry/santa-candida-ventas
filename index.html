@@ -145,13 +145,14 @@
         }
       }
 
+      // Actualizar usando el ID único de la fila para evitar fallos de tipo en el RP
       const { error: updateError } = await supabaseClient
         .from('ganado')
         .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
-        .eq('rp', rp);
+        .eq('id', animalActual.id);
 
       if (updateError) {
-        alert("Hubo un error al actualizar la base de datos.");
+        alert("Hubo un error al actualizar la base de datos: " + updateError.message);
         console.error(updateError);
       } else {
         animalActual.fotos_urls = fotosActuales;
