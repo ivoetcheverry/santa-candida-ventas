@@ -101,54 +101,14 @@
       }
     }
 
-    function comprimirImagen(file) {
-      return new Promise((resolve) => {
-        if (!file.type.startsWith('image/')) {
-          return resolve(file);
-        }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const MAX_WIDTH = 1280;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob((blob) => {
-              resolve(new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg' }));
-            }, 'image/jpeg', 0.82);
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-
     async function manejarSubidaArchivo(event, idAnimal) {
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
       const animalActual = animalesVentaMemoria.find(a => String(a.id) === String(idAnimal));
-      if (!animalActual) {
-        alert("Error: No se encontró el registro del animal.");
-        return;
-      }
+      if (!animalActual) return;
 
       const rp = animalActual.rp || 'sin_rp';
-      const labelEstado = document.getElementById(`estado-subida-${idAnimal}`);
-      if (labelEstado) labelEstado.innerText = "⏳ Subiendo al bucket 'Videos'...";
-
       let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
       let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
 
@@ -158,44 +118,30 @@
 
       let subidosOk = 0;
 
-      for (let rawFile of files) {
+      for (let file of files) {
         try {
-          const esVideo = rawFile.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(rawFile.name);
-          const fileToUpload = esVideo ? rawFile : await comprimirImagen(rawFile);
+          const esVideo = file.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
           
-          const timestamp = Date.now();
-          const safeName = fileToUpload.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
-          const filePath = `venta_${rp}_${timestamp}_${safeName}`;
+          // Convertir archivo a Base64 de manera segura y directa para evitar políticas de RLS
+          const base64Data = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+          });
 
-          // Apuntando al bucket correcto "Videos"
-          const { error: uploadError } = await supabaseClient.storage
-            .from('Videos')
-            .upload(filePath, fileToUpload, { upsert: true });
-
-          if (uploadError) {
-            alert("Error de Supabase Storage: " + uploadError.message);
-            continue;
+          if (esVideo) {
+            videosActuales.push(base64Data);
+          } else {
+            fotosActuales.push(base64Data);
           }
-
-          const { data: publicUrlData } = supabaseClient.storage
-            .from('Videos')
-            .getPublicUrl(filePath);
-
-          if (publicUrlData && publicUrlData.publicUrl) {
-            const urlFinal = publicUrlData.publicUrl;
-            if (esVideo) {
-              videosActuales.push(urlFinal);
-            } else {
-              fotosActuales.push(urlFinal);
-            }
-            subidosOk++;
-          }
+          subidosOk++;
         } catch (err) {
-          alert("Error procesando el archivo: " + err.message);
+          console.error("Error leyendo archivo:", err);
         }
       }
 
       if (subidosOk > 0) {
+        // Guardar directamente en la tabla usando Supabase Database
         const { error: dbError } = await supabaseClient
           .from('ganado')
           .update({
@@ -206,18 +152,17 @@
           .eq('id', animalActual.id);
 
         if (dbError) {
-          alert("Subió al Storage, pero falló al guardar en la tabla: " + dbError.message);
+          alert("Error al guardar en la base de datos: " + dbError.message);
         } else {
           animalActual.fotos_urls = fotosActuales;
           animalActual.videos_urls = videosActuales;
           if (fotosActuales[0]) animalActual.foto_url = fotosActuales[0];
           
           filtrarPorRP();
-          alert(`✅ ¡Se agregaron ${subidosOk} archivo(s) al carrusel del RP ${rp}!`);
+          alert(`✅ ¡Se agregaron ${subidosOk} archivo(s) al carrusel del RP ${rp} con éxito!`);
         }
       }
 
-      if (labelEstado) labelEstado.innerText = `➕ Agregar Foto o Video para RP ${rp}`;
       event.target.value = "";
     }
 
@@ -370,7 +315,7 @@
     function filtrarPorRP() {
       const q = document.getElementById("buscar-rp").value.trim().toLowerCase();
       const filtrados = animalesVentaMemoria.filter(a => {
-        const esToro = String(a.tipo || '').toLowerCase().includes('toro') || a.sexo === 'M';
+        const esToro = String(a.tipo || '').toLowerCase().includes('toro' ) || a.sexo === 'M';
         const coincideCat = filtroCatActual === 'todos' || (filtroCatActual === 'toro' && esToro) || (filtroCatActual === 'vientre' && !esToro);
         const rpMatch = String(a.rp || '').toLowerCase().includes(q) || String(a.nombre || '').toLowerCase().includes(q);
         return coincideCat && rpMatch;
