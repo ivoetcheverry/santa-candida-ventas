@@ -95,7 +95,7 @@
         }
 
         animalesVentaMemoria = data;
-        renderizarFichas(animalesVentaMemoria);
+        filtrarPorRP();
       } catch (err) {
         console.error("Error cargando desde Supabase:", err);
       }
@@ -108,11 +108,12 @@
       const animalActual = animalesVentaMemoria.find(a => String(a.rp) === String(rp));
       if (!animalActual) return;
 
-      let fotosActuales = animalActual.fotos_urls || [];
-      let videosActuales = animalActual.videos_urls || [];
+      let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
+      let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
 
-      // Mostrar alerta o indicador visual rápido si se desea
-      alert("⬆️ Subiendo archivo a Supabase Storage...");
+      if (animalActual.foto_url && fotosActuales.length === 0) {
+        fotosActuales.push(animalActual.foto_url);
+      }
 
       for (let file of files) {
         const timestamp = Date.now();
@@ -155,7 +156,7 @@
       } else {
         animalActual.fotos_urls = fotosActuales;
         animalActual.videos_urls = videosActuales;
-        renderizarFichas(animalesVentaMemoria);
+        filtrarPorRP();
         alert("¡Multimedia guardada y sincronizada correctamente!");
       }
     }
@@ -190,8 +191,8 @@
 
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        let videos = animal.videos_urls || [];
-        let fotos = animal.fotos_urls || [];
+        let videos = Array.isArray(animal.videos_urls) ? animal.videos_urls : [];
+        let fotos = Array.isArray(animal.fotos_urls) ? animal.fotos_urls : [];
         if (fotos.length === 0 && animal.foto_url) fotos.push(animal.foto_url);
 
         let mediaItems = [];
