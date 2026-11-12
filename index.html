@@ -65,7 +65,6 @@
   <script>
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
-    let galeriaDinamicaCache = {};
 
     const PEDIGREES_VENTA = {
       "778": "Gentil x Don Antonio x Trueno x Payador",
@@ -96,38 +95,9 @@
         }
 
         animalesVentaMemoria = data;
-        
-        // Cargar archivos multimedia desde el Storage para cada animal
-        for (let animal of animalesVentaMemoria) {
-          await cargarMultimediaStorageParaAnimal(animal.rp);
-        }
-
         filtrarPorRP();
       } catch (err) {
         console.error("Error cargando desde Supabase:", err);
-      }
-    }
-
-    async function cargarMultimediaStorageParaAnimal(rp) {
-      try {
-        const { data, error } = await supabaseClient.storage
-          .from('fotos-ganado')
-          .list('', { search: `galeria_${rp}_` });
-
-        if (!error && data && data.length > 0) {
-          let urls = data.map(item => {
-            const { data: publicUrlData } = supabaseClient.storage
-              .from('fotos-ganado')
-              .getPublicUrl(item.name);
-            return {
-              url: publicUrlData.publicUrl,
-              tipo: item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i) ? 'video' : 'image'
-            };
-          });
-          galeriaDinamicaCache[rp] = urls;
-        }
-      } catch (err) {
-        console.error("Error listando storage para RP " + rp, err);
       }
     }
 
@@ -135,29 +105,27 @@
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      alert("⬆️ Subiendo archivos al Storage de Supabase...");
+      let extraidasLocal = JSON.parse(localStorage.getItem(`galeria_rp_${rp}`)) || [];
 
       for (let file of files) {
-        const timestamp = Date.now();
-        const fileName = `galeria_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
-
-        try {
-          const { error: uploadError } = await supabaseClient.storage
-            .from('fotos-ganado')
-            .upload(fileName, file);
-
-          if (uploadError) {
-            console.error("Error subiendo archivo:", uploadError);
-          }
-        } catch (err) {
-          console.error("Excepción en subida:", err);
-        }
+        const reader = new FileReader();
+        await new Promise((resolve) => {
+          reader.onload = function(e) {
+            extraidasLocal.push({
+              url: e.target.result,
+              tipo: file.type.includes('video') ? 'video' : 'image'
+            });
+            resolve();
+          };
+          reader.readAsDataURL(file);
+        });
       }
 
-      // Recargar multimedia del animal y actualizar vista
-      await cargarMultimediaStorageParaAnimal(rp);
+      // Guardar en localStorage para este RP específico
+      localStorage.setItem(`galeria_rp_${rp}`, JSON.stringify(extraidasLocal));
+
       filtrarPorRP();
-      alert("¡Multimedia guardada y sincronizada correctamente en el carrusel!");
+      alert("¡Foto/Video cargado y agregado al carrusel correctamente!");
     }
 
     function abrirImagenFull(url) {
@@ -190,10 +158,12 @@
 
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        // Obtener multimedia desde el Storage caché o campos del animal
+        // Obtener fotos locales guardadas para este RP o usar la de la base de datos
         let mediaItems = [];
-        if (galeriaDinamicaCache[rp] && galeriaDinamicaCache[rp].length > 0) {
-          mediaItems = galeriaDinamicaCache[rp];
+        let guardadasLocal = JSON.parse(localStorage.getItem(`galeria_rp_${rp}`)) || [];
+
+        if (guardadasLocal.length > 0) {
+          mediaItems = guardadasLocal;
         } else {
           if (animal.foto_url) mediaItems.push({ type: 'image', url: animal.foto_url });
           if (animal.fotos_urls) {
