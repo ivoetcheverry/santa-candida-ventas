@@ -66,6 +66,17 @@
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
 
+    // Mapeo manual de pedigríes por RP según lo solicitado
+    const PEDIGREES_VENTA = {
+      "778": "Gentil x Don Antonio x Trueno x Payador",
+      "684": "Rumi x Trueno x Payador",
+      "784": "Napolitano x Density x Zorzal x Credito",
+      "772": "Ñato x Lider x Curu x Density",
+      "718": "Napolitano x Elegido x Density",
+      "792": "Rumi x Toluca x Lider",
+      "768": "Gentil x Don Antonio x Prototipo"
+    };
+
     document.addEventListener("DOMContentLoaded", () => {
       cargarAnimalesEnVenta();
     });
@@ -156,6 +167,9 @@
         const esToro = String(animal.tipo || '').toLowerCase().includes('toro') || animal.sexo === 'M';
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
 
+        // Buscar si hay pedigrí asignado para este RP
+        const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
+
         let videos = animal.videos_urls || [];
         let fotos = animal.fotos_urls || [];
         if (fotos.length === 0 && animal.foto_url) fotos.push(animal.foto_url);
@@ -235,6 +249,7 @@
               </div>
 
               <div class="bg-gray-950/60 p-3 rounded-xl border border-gray-800/60 text-xs space-y-1">
+                ${pedigreeTexto ? `<p class="pb-1.5 border-b border-gray-800"><span class="text-green-400 font-bold">Pedigree:</span> <span class="text-white">${pedigreeTexto}</span></p>` : ''}
                 <p><span class="text-gray-400 font-bold">Padre:</span> ${animal.padre || 'No informado'}</p>
                 <p><span class="text-gray-400 font-bold">Madre:</span> ${animal.madre || 'No informada'}</p>
               </div>
