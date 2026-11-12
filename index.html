@@ -65,6 +65,7 @@
   <script>
     let animalesVentaMemoria = [];
     let filtroCatActual = 'todos';
+    let galeriaDinamicaCache = {};
 
     const PEDIGREES_VENTA = {
       "778": "Gentil x Don Antonio x Trueno x Payador",
@@ -95,9 +96,38 @@
         }
 
         animalesVentaMemoria = data;
+        
+        // Cargar archivos multimedia desde el Storage para cada animal
+        for (let animal of animalesVentaMemoria) {
+          await cargarMultimediaStorageParaAnimal(animal.rp);
+        }
+
         filtrarPorRP();
       } catch (err) {
         console.error("Error cargando desde Supabase:", err);
+      }
+    }
+
+    async function cargarMultimediaStorageParaAnimal(rp) {
+      try {
+        const { data, error } = await supabaseClient.storage
+          .from('fotos-ganado')
+          .list('', { search: `galeria_${rp}_` });
+
+        if (!error && data && data.length > 0) {
+          let urls = data.map(item => {
+            const { data: publicUrlData } = supabaseClient.storage
+              .from('fotos-ganado')
+              .getPublicUrl(item.name);
+            return {
+              url: publicUrlData.publicUrl,
+              tipo: item.name.match(/\.(mp4|mov|avi|mkv|webm)$/i) ? 'video' : 'image'
+            };
+          });
+          galeriaDinamicaCache[rp] = urls;
+        }
+      } catch (err) {
+        console.error("Error listando storage para RP " + rp, err);
       }
     }
 
@@ -105,19 +135,11 @@
       const files = event.target.files;
       if (!files || files.length === 0) return;
 
-      const animalActual = animalesVentaMemoria.find(a => String(a.rp) === String(rp));
-      if (!animalActual) return;
-
-      let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
-      let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
-
-      if (animalActual.foto_url && fotosActuales.length === 0) {
-        fotosActuales.push(animalActual.foto_url);
-      }
+      alert("⬆️ Subiendo archivos al Storage de Supabase...");
 
       for (let file of files) {
         const timestamp = Date.now();
-        const fileName = `venta_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+        const fileName = `galeria_${rp}_${timestamp}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
 
         try {
           const { error: uploadError } = await supabaseClient.storage
@@ -126,40 +148,16 @@
 
           if (uploadError) {
             console.error("Error subiendo archivo:", uploadError);
-            continue;
-          }
-
-          const { data: publicUrlData } = supabaseClient.storage
-            .from('fotos-ganado')
-            .getPublicUrl(fileName);
-
-          if (publicUrlData && publicUrlData.publicUrl) {
-            if (file.type.includes('video') || file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
-              videosActuales.push(publicUrlData.publicUrl);
-            } else {
-              fotosActuales.push(publicUrlData.publicUrl);
-            }
           }
         } catch (err) {
           console.error("Excepción en subida:", err);
         }
       }
 
-      // Actualizar usando el ID único de la fila para evitar fallos de tipo en el RP
-      const { error: updateError } = await supabaseClient
-        .from('ganado')
-        .update({ fotos_urls: fotosActuales, videos_urls: videosActuales })
-        .eq('id', animalActual.id);
-
-      if (updateError) {
-        alert("Hubo un error al actualizar la base de datos: " + updateError.message);
-        console.error(updateError);
-      } else {
-        animalActual.fotos_urls = fotosActuales;
-        animalActual.videos_urls = videosActuales;
-        filtrarPorRP();
-        alert("¡Multimedia guardada y sincronizada correctamente!");
-      }
+      // Recargar multimedia del animal y actualizar vista
+      await cargarMultimediaStorageParaAnimal(rp);
+      filtrarPorRP();
+      alert("¡Multimedia guardada y sincronizada correctamente en el carrusel!");
     }
 
     function abrirImagenFull(url) {
@@ -192,13 +190,19 @@
 
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        let videos = Array.isArray(animal.videos_urls) ? animal.videos_urls : [];
-        let fotos = Array.isArray(animal.fotos_urls) ? animal.fotos_urls : [];
-        if (fotos.length === 0 && animal.foto_url) fotos.push(animal.foto_url);
-
+        // Obtener multimedia desde el Storage caché o campos del animal
         let mediaItems = [];
-        videos.forEach(v => { if (v) mediaItems.push({ type: 'video', url: v }); });
-        fotos.forEach(f => { if (f) mediaItems.push({ type: 'image', url: f }); });
+        if (galeriaDinamicaCache[rp] && galeriaDinamicaCache[rp].length > 0) {
+          mediaItems = galeriaDinamicaCache[rp];
+        } else {
+          if (animal.foto_url) mediaItems.push({ type: 'image', url: animal.foto_url });
+          if (animal.fotos_urls) {
+            animal.fotos_urls.forEach(f => mediaItems.push({ type: 'image', url: f }));
+          }
+          if (animal.videos_urls) {
+            animal.videos_urls.forEach(v => mediaItems.push({ type: 'video', url: v }));
+          }
+        }
 
         if (mediaItems.length === 0) {
           mediaItems.push({ type: 'image', url: './logo.png' });
@@ -207,7 +211,7 @@
         const galeriaHTML = `
           <div class="flex overflow-x-auto snap-x snap-mandatory no-scrollbar w-full h-72 bg-black">
             ${mediaItems.map(item => {
-              if (item.type === 'video') {
+              if (item.tipo === 'video') {
                 return `
                   <div class="snap-center shrink-0 w-full h-full flex items-center justify-center relative">
                     <video controls class="w-full h-full object-contain">
