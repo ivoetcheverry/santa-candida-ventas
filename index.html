@@ -135,7 +135,7 @@
       const animalActual = animalesVentaMemoria.find(a => String(a.id) === String(idAnimal));
       if (!animalActual) return;
 
-      const rp = animalActual.rp || 'sin_rp';
+      const rp = animalActual.rp || animalActual.id;
       let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
       let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
 
@@ -145,31 +145,47 @@
 
       let subidosOk = 0;
       const estadoSubida = document.getElementById(`estado-subida-${animalActual.id}`);
-      if (estadoSubida) estadoSubida.innerText = "⏳ Procesando y guardando...";
+      if (estadoSubida) estadoSubida.innerText = "⏳ Subiendo archivos...";
 
       for (let file of files) {
         try {
           const esVideo = file.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
 
           if (esVideo) {
-            const base64Video = await new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onload = (e) => resolve(e.target.result);
-              reader.readAsDataURL(file);
-            });
-            videosActuales.push(base64Video);
+            // Subir video a Supabase Storage para evitar Timeouts de Base64
+            const timestamp = Date.now();
+            const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+            const fileName = `${rp}/video_${timestamp}_${safeName}`;
+
+            const { error: uploadError } = await supabaseClient.storage
+              .from('fotos-ganado')
+              .upload(fileName, file, { upsert: true });
+
+            if (uploadError) {
+              alert("❌ Error subiendo video: " + uploadError.message);
+              continue;
+            }
+
+            const { data: publicUrlData } = supabaseClient.storage
+              .from('fotos-ganado')
+              .getPublicUrl(fileName);
+
+            if (publicUrlData && publicUrlData.publicUrl) {
+              videosActuales.push(publicUrlData.publicUrl + '?t=' + Date.now());
+              subidosOk++;
+            }
           } else {
+            // Comprimir foto a Base64 (liviana y rápida)
             const base64Img = await comprimirImagenABase64(file);
             fotosActuales.push(base64Img);
+            subidosOk++;
           }
-          subidosOk++;
         } catch (err) {
           console.error("Error procesando archivo:", err);
         }
       }
 
       if (subidosOk > 0) {
-        // .select() confirma si Supabase realmente modificó la fila o si RLS la bloqueó
         const { data: updatedRows, error: dbError } = await supabaseClient
           .from('ganado')
           .update({
@@ -183,14 +199,14 @@
         if (dbError) {
           alert("❌ Error de Supabase: " + dbError.message);
         } else if (!updatedRows || updatedRows.length === 0) {
-          alert("⚠️ Supabase bloqueó el guardado por permisos (RLS). Ejecutá la política UPDATE en SQL Editor.");
+          alert("⚠️ Supabase bloqueó el guardado por permisos (RLS).");
         } else {
           animalActual.fotos_urls = updatedRows[0].fotos_urls;
           animalActual.videos_urls = updatedRows[0].videos_urls;
           animalActual.foto_url = updatedRows[0].foto_url;
           
           filtrarPorRP();
-          alert(`✅ ¡Guardado permanente en Supabase para RP ${rp}! Podés refrescar tranquilo.`);
+          alert(`✅ ¡${subidosOk} archivo(s) subido(s) y guardados con éxito para el RP ${rp}!`);
         }
       }
 
