@@ -94,6 +94,42 @@
           return;
         }
 
+        // Cargar archivos multimedia directamente desde Supabase Storage para cada animal
+        for (let animal of data) {
+          const rp = animal.rp || animal.id;
+          try {
+            const { data: filesData } = await supabaseClient.storage
+              .from('fotos-ganado')
+              .list(String(rp), { sortBy: { column: 'name', order: 'asc' } });
+
+            let mediaList = [];
+            if (filesData && filesData.length > 0) {
+              filesData.forEach(file => {
+                const { data: publicUrlData } = supabaseClient.storage
+                  .from('fotos-ganado')
+                  .getPublicUrl(`${rp}/${file.name}`);
+                
+                if (publicUrlData && publicUrlData.publicUrl) {
+                  const esVideo = file.name.match(/\.(mp4|mov|avi|mkv|webm)$/i) || file.name.includes('video');
+                  mediaList.push({
+                    url: publicUrlData.publicUrl + '?t=' + Date.now(),
+                    tipo: esVideo ? 'video' : 'image'
+                  });
+                }
+              });
+            }
+
+            if (mediaList.length === 0 && animal.foto_url && !animal.foto_url.startsWith('data:')) {
+              mediaList.push({ tipo: 'image', url: animal.foto_url });
+            }
+
+            animal._mediaItems = mediaList;
+          } catch (e) {
+            console.warn("Error listando storage para RP", rp, e);
+            animal._mediaItems = animal.foto_url ? [{ tipo: 'image', url: animal.foto_url }] : [];
+          }
+        }
+
         animalesVentaMemoria = data;
         filtrarPorRP();
       } catch (err) {
@@ -108,59 +144,39 @@
       const animalActual = animalesVentaMemoria.find(a => String(a.id) === String(idAnimal));
       if (!animalActual) return;
 
-      const rp = animalActual.rp || 'sin_rp';
-      let fotosActuales = Array.isArray(animalActual.fotos_urls) ? [...animalActual.fotos_urls] : [];
-      let videosActuales = Array.isArray(animalActual.videos_urls) ? [...animalActual.videos_urls] : [];
-
-      if (animalActual.foto_url && !fotosActuales.includes(animalActual.foto_url)) {
-        fotosActuales.push(animalActual.foto_url);
-      }
-
+      const rp = animalActual.rp || animalActual.id;
       let subidosOk = 0;
+      
+      const estadoSubida = document.getElementById(`estado-subida-${animalActual.id}`);
+      if (estadoSubida) estadoSubida.innerText = "⬆️ Subiendo archivos a Supabase...";
 
       for (let file of files) {
-        try {
-          const esVideo = file.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
-          
-          // Convertir archivo a Base64 de manera segura y directa para evitar políticas de RLS
-          const base64Data = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => resolve(e.target.result);
-            reader.readAsDataURL(file);
-          });
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9_.-]/g, '_');
+        const esVideo = file.type.includes('video') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
+        const fileName = `${rp}/galeria_${timestamp}_${safeName}`;
 
-          if (esVideo) {
-            videosActuales.push(base64Data);
+        try {
+          const { error } = await supabaseClient.storage
+            .from('fotos-ganado')
+            .upload(fileName, file, { upsert: true });
+
+          if (!error) {
+            subidosOk++;
           } else {
-            fotosActuales.push(base64Data);
+            console.error("Error al subir a Storage:", error.message);
           }
-          subidosOk++;
         } catch (err) {
-          console.error("Error leyendo archivo:", err);
+          console.error("Excepción al subir archivo:", err);
         }
       }
 
       if (subidosOk > 0) {
-        // Guardar directamente en la tabla usando Supabase Database
-        const { error: dbError } = await supabaseClient
-          .from('ganado')
-          .update({
-            fotos_urls: fotosActuales,
-            videos_urls: videosActuales,
-            foto_url: fotosActuales[0] || animalActual.foto_url
-          })
-          .eq('id', animalActual.id);
-
-        if (dbError) {
-          alert("Error al guardar en la base de datos: " + dbError.message);
-        } else {
-          animalActual.fotos_urls = fotosActuales;
-          animalActual.videos_urls = videosActuales;
-          if (fotosActuales[0]) animalActual.foto_url = fotosActuales[0];
-          
-          filtrarPorRP();
-          alert(`✅ ¡Se agregaron ${subidosOk} archivo(s) al carrusel del RP ${rp} con éxito!`);
-        }
+        await cargarAnimalesEnVenta();
+        alert(`✅ ¡Se subieron ${subidosOk} archivo(s) correctamente al bucket para el RP ${rp}!`);
+      } else {
+        alert("⚠️ Hubo un error al subir los archivos.");
+        if (estadoSubida) estadoSubida.innerText = `➕ Agregar Foto o Video para RP ${rp}`;
       }
 
       event.target.value = "";
@@ -195,17 +211,7 @@
         const categoriaEtiqueta = animal.tipo || (esToro ? 'Toro Reproductor' : 'Vientre PP');
         const pedigreeTexto = PEDIGREES_VENTA[String(rp)] || animal.pedigree || '';
 
-        let videos = Array.isArray(animal.videos_urls) ? animal.videos_urls : [];
-        let fotos = Array.isArray(animal.fotos_urls) ? animal.fotos_urls : [];
-        
-        if (animal.foto_url && !fotos.includes(animal.foto_url)) {
-          fotos = [animal.foto_url, ...fotos];
-        }
-
-        let mediaItems = [];
-        videos.forEach(v => { if (v) mediaItems.push({ tipo: 'video', url: v }); });
-        fotos.forEach(f => { if (f) mediaItems.push({ tipo: 'image', url: f }); });
-
+        let mediaItems = animal._mediaItems || [];
         if (mediaItems.length === 0) {
           mediaItems.push({ tipo: 'image', url: './logo.png' });
         }
